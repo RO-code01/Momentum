@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="dark"> <!-- Theme class will be applied here -->
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,48 +7,78 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root { /* Dark Theme (Default) */
-            --color-bg: #030712;
-            --color-surface: #111827;
-            --color-surface-alt: #1f2937;
-            --color-text-header: #f3f4f6;
+        :root {
+            --color-bg: #111827; /* Softer dark blue-gray */
+            --color-surface: #1f2937; /* Lighter surface */
+            --color-surface-alt: #374151; /* Even lighter for hover */
+            --color-text-header: #f9fafb;
             --color-text-primary: #d1d5db;
-            --color-text-secondary: #6b7280;
-            --color-border: #374151;
-            --color-ring: #0ea5e9;
+            --color-text-secondary: #9ca3af;
+            --color-border: #4b5563;
+            --color-ring: #38bdf8; /* A brighter, more vibrant blue */
             --color-day-default: #374151;
             --color-day-text: #d1d5db;
         }
 
-        /* Base styles using CSS variables */
+        /* Base styles */
         body {
             font-family: 'Inter', sans-serif;
             background-color: var(--color-bg);
             color: var(--color-text-primary);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
+
+        /* Glassmorphism effect for modals */
+        .modal-backdrop {
+            background-color: rgba(17, 24, 39, 0.6);
+            backdrop-filter: blur(8px);
+        }
+        
+        /* Interactive elements */
+        .interactive-scale {
+            transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .interactive-scale:hover {
+            transform: scale(1.03);
+        }
+        .interactive-scale:active {
+            transform: scale(0.98);
+        }
+        
+        /* Custom scrollbar for a cleaner look */
+        #task-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        #task-list::-webkit-scrollbar-track {
+            background: var(--color-surface);
+        }
+        #task-list::-webkit-scrollbar-thumb {
+            background: var(--color-surface-alt);
+            border-radius: 3px;
+        }
+        #task-list::-webkit-scrollbar-thumb:hover {
+            background: #4b5563;
+        }
+
+        /* Calendar styles */
         .calendar-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
-            gap: 8px;
+            gap: 0.5rem;
         }
         .calendar-day {
             width: 100%;
-            padding-bottom: 100%; /* Creates a square aspect ratio */
+            padding-bottom: 100%;
             position: relative;
-            border-radius: 6px;
+            border-radius: 0.5rem;
             cursor: pointer;
-            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, background-color 0.3s;
-        }
-        .calendar-day:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transition: all 0.2s ease-in-out;
+            border: 1px solid transparent;
         }
         .calendar-day-content {
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            inset: 0;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -58,15 +88,13 @@
             font-size: 0.75rem;
             color: var(--color-text-secondary);
             text-align: center;
-            margin-bottom: 4px;
             font-weight: 600;
+            text-transform: uppercase;
         }
-        /* Custom modal backdrop */
-        .modal-backdrop {
-            background-color: rgba(0, 0, 0, 0.6);
-        }
+
+        /* Loader */
         .loader {
-            border: 4px solid #f3f3f3;
+            border: 4px solid var(--color-surface-alt);
             border-top: 4px solid var(--color-ring);
             border-radius: 50%;
             width: 40px;
@@ -78,160 +106,88 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Theming utility classes */
+        /* Utility classes */
         .bg-surface { background-color: var(--color-surface); }
-        .bg-surface-alt { background-color: var(--color-surface-alt); }
         .text-header { color: var(--color-text-header); }
         .text-primary { color: var(--color-text-primary); }
         .text-secondary { color: var(--color-text-secondary); }
-        .border-themed { border: 1px solid var(--color-border); }
+        .border-themed { border-color: var(--color-border); }
         .day-default-bg { background-color: var(--color-day-default); }
-        .day-default-text { color: var(--color-day-text); }
-        .ring-themed {
-             outline: 2px solid transparent;
-             outline-offset: 2px;
-             box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-ring);
-        }
-        .themed-input {
-            background-color: transparent;
+        .ring-themed { box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-ring); }
+        .themed-input, .themed-select {
+            background-color: var(--color-bg);
             border: 1px solid var(--color-border);
             color: var(--color-text-primary);
+            transition: border-color 0.2s, box-shadow 0.2s;
         }
+        .themed-input::placeholder { color: var(--color-text-secondary); }
         .themed-input:focus, .themed-select:focus {
             border-color: var(--color-ring);
             box-shadow: 0 0 0 1px var(--color-ring);
             outline: none;
         }
-        .themed-select {
-            background-color: var(--color-surface);
-            border: 1px solid var(--color-border);
-            color: var(--color-text-primary);
-        }
-
+        .task-actions { opacity: 0; transition: opacity 0.2s ease-in-out; }
+        .task-item:hover .task-actions { opacity: 1; }
     </style>
 </head>
 <body class="antialiased">
 
     <!-- App Container -->
-    <div id="app-container" class="min-h-screen p-4 sm:p-6 lg:p-8">
-        <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div id="app-container" class="min-h-screen p-2 sm:p-4 lg:p-6">
+        <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-5 gap-6">
             
             <!-- Left Column: Calendar -->
-            <div class="lg:col-span-2 bg-surface p-6 rounded-2xl shadow-lg">
-                <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-2xl font-bold text-header" id="month-year-header"></h2>
-                    <div class="flex items-center space-x-2">
-                        <button id="prev-month" class="p-2 rounded-md bg-surface-alt hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-secondary" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
+            <div class="lg:col-span-3 bg-surface p-4 sm:p-6 rounded-2xl shadow-2xl border border-themed">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl sm:text-2xl font-bold text-header" id="month-year-header"></h2>
+                    <div class="flex items-center space-x-1">
+                        <button id="prev-month" class="p-2 rounded-full hover:bg-surface-alt transition-colors">
+                            <svg class="h-5 w-5 text-secondary" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
                         </button>
-                        <button id="next-month" class="p-2 rounded-md bg-surface-alt hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-secondary" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>
+                        <button id="next-month" class="p-2 rounded-full hover:bg-surface-alt transition-colors">
+                            <svg class="h-5 w-5 text-secondary" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>
                         </button>
                     </div>
                 </div>
-                <div class="grid grid-cols-7 gap-2 mb-2">
-                    <div class="day-name">Sun</div>
-                    <div class="day-name">Mon</div>
-                    <div class="day-name">Tue</div>
-                    <div class="day-name">Wed</div>
-                    <div class="day-name">Thu</div>
-                    <div class="day-name">Fri</div>
-                    <div class="day-name">Sat</div>
+                <div class="grid grid-cols-7 gap-1 mb-2">
+                    <div class="day-name">S</div><div class="day-name">M</div><div class="day-name">T</div><div class="day-name">W</div><div class="day-name">T</div><div class="day-name">F</div><div class="day-name">S</div>
                 </div>
-                <div id="calendar-grid" class="calendar-grid">
-                    <!-- Calendar days will be injected here -->
-                </div>
-                <div class="mt-6 flex items-center justify-center space-x-4 text-sm text-secondary">
-                    <div class="flex items-center"><div class="w-4 h-4 rounded-sm bg-red-400 mr-2 border border-red-500"></div>&lt; 70%</div>
-                    <div class="flex items-center"><div class="w-4 h-4 rounded-sm bg-yellow-400 mr-2 border border-yellow-500"></div>70-80%</div>
-                    <div class="flex items-center"><div class="w-4 h-4 rounded-sm bg-green-400 mr-2 border border-green-500"></div>&ge; 81%</div>
+                <div id="calendar-grid" class="calendar-grid"></div>
+                <div class="mt-4 flex items-center justify-center space-x-4 text-xs text-secondary">
+                    <div class="flex items-center"><span class="w-3 h-3 rounded-sm bg-red-500/80 mr-2"></span>&lt; 70%</div>
+                    <div class="flex items-center"><span class="w-3 h-3 rounded-sm bg-yellow-400/80 mr-2"></span>70-80%</div>
+                    <div class="flex items-center"><span class="w-3 h-3 rounded-sm bg-green-400/80 mr-2"></span>&ge; 81%</div>
                 </div>
             </div>
 
             <!-- Right Column: Daily Tasks -->
-            <div class="lg:col-span-1 bg-surface p-6 rounded-2xl shadow-lg h-fit">
-                <h3 class="text-xl font-bold text-header mb-1">Tasks for</h3>
-                <p class="text-secondary font-medium mb-6" id="selected-date-header">Select a date</p>
-                
-                <div id="task-list" class="space-y-4 mb-6">
-                    <!-- Tasks will be injected here -->
-                </div>
-                
-                <div id="task-view-actions" class="hidden">
-                    <button id="add-task-btn" class="w-full bg-blue-500 text-white font-semibold py-3 rounded-lg hover:bg-blue-600 transition-all shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
-                        Add New Task
-                    </button>
-                    <button id="save-progress-btn" class="w-full mt-3 bg-green-500 text-white font-semibold py-3 rounded-lg hover:bg-green-600 transition-all shadow-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50">
-                        Save Day's Progress
-                    </button>
+            <div class="lg:col-span-2 bg-surface p-4 sm:p-6 rounded-2xl shadow-2xl h-fit border border-themed">
+                <div class="h-[75vh] flex flex-col">
+                    <h3 class="text-lg sm:text-xl font-bold text-header mb-1">Tasks for</h3>
+                    <p class="text-secondary font-medium mb-4 text-sm" id="selected-date-header">Select a date</p>
+                    <div id="task-list" class="flex-grow space-y-3 mb-4 pr-2 overflow-y-auto"></div>
+                    <div id="task-view-actions" class="hidden mt-auto pt-4 border-t border-themed">
+                        <button id="add-task-btn" class="w-full bg-sky-500 text-white font-semibold py-3 rounded-lg hover:bg-sky-600 transition-all shadow-lg shadow-sky-900/50 interactive-scale">Add New Task</button>
+                        <button id="save-progress-btn" class="w-full mt-3 bg-emerald-500 text-white font-semibold py-3 rounded-lg hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-900/50 interactive-scale">Save Progress</button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- Add Task Modal -->
-    <div id="add-task-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden modal-backdrop">
-        <div class="bg-surface rounded-2xl shadow-2xl p-8 w-full max-w-md m-4 transform transition-all" id="modal-content">
-            <h2 class="text-2xl font-bold mb-6 text-header">Add a New Task</h2>
-            
-            <div class="space-y-4">
-                <div>
-                    <label for="task-text" class="block text-sm font-medium text-secondary mb-1">Task Description</label>
-                    <input type="text" id="task-text" class="w-full px-4 py-2 rounded-lg themed-input" placeholder="e.g., Revise chemistry">
-                </div>
-                
-                <div>
-                    <label for="task-type" class="block text-sm font-medium text-secondary mb-1">Task Type</label>
-                    <select id="task-type" class="w-full px-4 py-2 rounded-lg themed-select">
-                        <option value="time">Time-based</option>
-                        <option value="unit">Unit-based</option>
-                    </select>
-                </div>
-
-                <!-- Fields for Time-based task -->
-                <div id="time-fields">
-                    <label for="task-minutes" class="block text-sm font-medium text-secondary mb-1">Total Duration (in minutes)</label>
-                    <input type="number" id="task-minutes" class="w-full px-4 py-2 rounded-lg themed-input" placeholder="...">
-                </div>
-
-                <!-- Fields for Unit-based task -->
-                <div id="unit-fields" class="hidden space-y-4">
-                     <div>
-                        <label for="task-units" class="block text-sm font-medium text-secondary mb-1">Total Units</label>
-                        <input type="number" id="task-units" class="w-full px-4 py-2 rounded-lg themed-input" placeholder="e.g., 3">
-                     </div>
-                     <div>
-                        <label for="task-total-minutes-for-units" class="block text-sm font-medium text-secondary mb-1">Total Time for all units (in minutes)</label>
-                        <input type="number" id="task-total-minutes-for-units" class="w-full px-4 py-2 rounded-lg themed-input" placeholder="e.g., 180">
-                     </div>
-                </div>
-            </div>
-
-            <div class="mt-8 flex justify-end space-x-3">
-                <button id="cancel-task-btn" class="px-6 py-2 bg-surface-alt border-themed text-primary font-semibold rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">Cancel</button>
-                <button id="confirm-add-task-btn" class="px-6 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition-colors">Add Task</button>
-            </div>
-        </div>
-    </div>
+    <!-- Modals (Add, Edit, Confirm Delete) -->
+    <div id="modal-container"></div>
     
-    <!-- Loader element -->
-    <div id="loader" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden">
-        <div class="loader"></div>
-    </div>
-    
-    <!-- Custom Alert/Toast -->
-    <div id="toast" class="fixed bottom-5 right-5 bg-gray-800 text-white py-3 px-6 rounded-lg shadow-lg opacity-0 transform translate-y-2 transition-all duration-300">
-        <p id="toast-message"></p>
-    </div>
+    <!-- Loader & Toast -->
+    <div id="loader" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden"><div class="loader"></div></div>
+    <div id="toast" class="fixed bottom-5 right-5 bg-surface-alt text-white py-3 px-6 rounded-lg shadow-2xl opacity-0 transform translate-y-2 transition-all duration-300 border border-themed"><p id="toast-message"></p></div>
 
     <!-- Firebase -->
     <script type="module">
-        // Firebase v11.6.1
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, getDocs, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-        // --- CONFIG AND INITIALIZATION ---
         const firebaseConfig = {
           apiKey: "AIzaSyC4Psy8n4mOY8iqntvc4LCh3p_1p5wqU08",
           authDomain: "momentum-16b36.firebaseapp.com",
@@ -242,38 +198,33 @@
           measurementId: "G-TJRELT8PFW"
         };
         
-        const appId = firebaseConfig.projectId; // Use your unique projectId
-        
-        let app, auth, db, userId;
-        let unsubscribeTaskListener = null;
+        let app, auth, db, userId, unsubscribeTaskListener;
         let isAuthReady = false;
-
-        // --- GLOBAL STATE ---
         let currentDate = new Date();
         let selectedDate = null;
         let monthlyData = {};
+        let currentTasks = [];
 
-        // --- UI ELEMENTS ---
-        const monthYearHeader = document.getElementById('month-year-header');
-        const calendarGrid = document.getElementById('calendar-grid');
-        const selectedDateHeader = document.getElementById('selected-date-header');
-        const taskList = document.getElementById('task-list');
-        const taskViewActions = document.getElementById('task-view-actions');
-        const loader = document.getElementById('loader');
-        const toast = document.getElementById('toast');
-        const toastMessage = document.getElementById('toast-message');
+        const ui = {
+            monthYearHeader: document.getElementById('month-year-header'),
+            calendarGrid: document.getElementById('calendar-grid'),
+            selectedDateHeader: document.getElementById('selected-date-header'),
+            taskList: document.getElementById('task-list'),
+            taskViewActions: document.getElementById('task-view-actions'),
+            loader: document.getElementById('loader'),
+            toast: document.getElementById('toast'),
+            toastMessage: document.getElementById('toast-message'),
+            modalContainer: document.getElementById('modal-container'),
+        };
 
         // --- INITIALIZE APP ---
         async function main() {
             try {
-                if (!firebaseConfig.apiKey || firebaseConfig.apiKey.includes("PASTE_YOUR")) {
-                    throw new Error("Firebase config is not valid. Please paste your config object.");
-                }
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
-                onAuthStateChanged(auth, async (user) => {
+                onAuthStateChanged(auth, async user => {
                     if (user) {
                         userId = user.uid;
                         if (!isAuthReady) {
@@ -281,58 +232,45 @@
                              await renderCalendar();
                         }
                     } else {
-                        try {
-                            await signInAnonymously(auth);
-                        } catch (error) {
-                            console.error("Sign-in failed:", error);
-                            showToast("Authentication failed. Please refresh.", "error");
-                        }
+                        signInAnonymously(auth).catch(err => {
+                            console.error("Sign-in failed:", err);
+                            showToast("Authentication failed.", "error");
+                        });
                     }
                 });
-
             } catch (error) {
-                console.error("Firebase initialization failed:", error);
+                console.error("Firebase init failed:", error);
                 showToast(error.message, "error");
             }
         }
-        main();
-        
-        // --- HELPER FUNCTIONS ---
-        function formatDate(date) {
-            return date.toISOString().split('T')[0]; // YYYY-MM-DD
-        }
+
+        // --- HELPERS ---
+        const formatDate = date => date.toISOString().split('T')[0];
+        const showLoader = isLoading => ui.loader.classList.toggle('hidden', !isLoading);
 
         function showToast(message, type = 'success') {
-            toastMessage.textContent = message;
-            toast.className = toast.className.replace(/bg-gray-800|bg-red-500/g, ''); // Clear previous color classes
-            toast.classList.add(type === 'error' ? 'bg-red-500' : 'bg-gray-800');
-            toast.classList.remove('opacity-0', 'translate-y-2');
-            setTimeout(() => {
-                toast.classList.add('opacity-0', 'translate-y-2');
-            }, 3000);
+            ui.toastMessage.textContent = message;
+            ui.toast.className = ui.toast.className.replace(/bg-red-500|bg-surface-alt/g, '');
+            ui.toast.classList.add(type === 'error' ? 'bg-red-500' : 'bg-surface-alt');
+            ui.toast.classList.remove('opacity-0', 'translate-y-2');
+            setTimeout(() => ui.toast.classList.add('opacity-0', 'translate-y-2'), 3000);
         }
 
-        // --- CALENDAR LOGIC ---
+        // --- CALENDAR ---
         async function fetchMonthlyData(year, month) {
             if (!userId || !isAuthReady) return;
-            showLoader(true);
             const monthStr = String(month + 1).padStart(2, '0');
-            const collectionPath = `/daily_progress`; // Simplified path for user's own DB
-            const q = query(collection(db, collectionPath));
+            const q = query(collection(db, `daily_progress`));
             
             try {
                 const querySnapshot = await getDocs(q);
                 monthlyData = {};
                 querySnapshot.forEach(doc => {
-                     if (doc.id.startsWith(`${year}-${monthStr}`)) {
-                        monthlyData[doc.id] = doc.data();
-                     }
+                     if (doc.id.startsWith(`${year}-${monthStr}`)) monthlyData[doc.id] = doc.data();
                 });
             } catch (error) {
-                 console.error("Error fetching monthly data: ", error);
-                 showToast("Could not load calendar data.", "error");
-            } finally {
-                showLoader(false);
+                 console.error("Error fetching monthly data:", error);
+                 showToast("Could not load calendar.", "error");
             }
         }
 
@@ -341,18 +279,15 @@
             showLoader(true);
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
-
             await fetchMonthlyData(year, month);
             
-            monthYearHeader.textContent = currentDate.toLocaleString('en-US', { month: 'long', year: 'numeric' });
-            calendarGrid.innerHTML = '';
+            ui.monthYearHeader.textContent = currentDate.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+            ui.calendarGrid.innerHTML = '';
             
             const firstDayOfMonth = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             
-            for (let i = 0; i < firstDayOfMonth; i++) {
-                calendarGrid.innerHTML += '<div></div>';
-            }
+            ui.calendarGrid.innerHTML = Array(firstDayOfMonth).fill('<div></div>').join('');
             
             for (let day = 1; day <= daysInMonth; day++) {
                 const date = new Date(year, month, day);
@@ -360,133 +295,109 @@
                 const dayData = monthlyData[dateStr];
 
                 let bgColor = 'day-default-bg';
-                let textColor = 'day-default-text';
+                let textColor = 'text-primary';
                 
-                if (dayData) {
-                    const percentage = dayData.completionPercentage || 0;
-                    if (percentage >= 81) bgColor = 'bg-green-400';
-                    else if (percentage >= 70) bgColor = 'bg-yellow-400';
-                    else bgColor = 'bg-red-400';
-                    textColor = 'text-white';
+                if (dayData && dayData.completionPercentage != null) {
+                    const p = dayData.completionPercentage;
+                    if (p >= 81) bgColor = 'bg-green-400/80';
+                    else if (p >= 70) bgColor = 'bg-yellow-400/80';
+                    else bgColor = 'bg-red-500/80';
+                    textColor = 'text-white font-bold';
                 }
                 
-                const isSelected = selectedDate && formatDate(selectedDate) === dateStr;
-                const border = isSelected ? 'ring-themed' : '';
-                
                 const dayEl = document.createElement('div');
-                dayEl.className = `calendar-day ${bgColor} ${border}`;
-                dayEl.dataset.date = dateStr;
+                dayEl.className = `calendar-day ${bgColor} ${formatDate(selectedDate || new Date(0)) === dateStr ? 'ring-themed' : ''}`;
                 dayEl.innerHTML = `<div class="calendar-day-content ${textColor}">${day}</div>`;
                 dayEl.addEventListener('click', () => handleDateClick(date));
-                calendarGrid.appendChild(dayEl);
+                ui.calendarGrid.appendChild(dayEl);
             }
             showLoader(false);
         }
         
-        // --- TASK LOGIC ---
+        // --- TASKS ---
         function handleDateClick(date) {
-            if (!isAuthReady) return;
             selectedDate = date;
-            selectedDateHeader.textContent = date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-            taskViewActions.classList.remove('hidden');
+            ui.selectedDateHeader.textContent = date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+            ui.taskViewActions.classList.remove('hidden');
             
-            if (unsubscribeTaskListener) {
-                unsubscribeTaskListener();
-            }
+            if (unsubscribeTaskListener) unsubscribeTaskListener();
+            const docRef = doc(db, `daily_progress`, formatDate(date));
 
-            const dateStr = formatDate(date);
-            const docRef = doc(db, `daily_progress`, dateStr); // Simplified path
-
-            unsubscribeTaskListener = onSnapshot(docRef, (docSnap) => {
-                renderTasks(docSnap.exists() ? docSnap.data().tasks || [] : []);
+            unsubscribeTaskListener = onSnapshot(docRef, docSnap => {
+                currentTasks = docSnap.exists() ? docSnap.data().tasks || [] : [];
+                renderTasks(currentTasks);
                 renderCalendar();
-            }, (error) => {
-                console.error("Error listening to task updates:", error);
+            }, error => {
+                console.error("Task listener error:", error);
                 showToast("Could not fetch tasks.", "error");
             });
         }
         
         function renderTasks(tasks) {
-            taskList.innerHTML = '';
-            if (!tasks || tasks.length === 0) {
-                taskList.innerHTML = `<p class="text-secondary italic text-center">No tasks for this day. Add one!</p>`;
-                return;
-            }
-            
-            tasks.forEach(task => {
-                const isCompleted = (task.type === 'time' && task.completedMinutes >= task.totalMinutes) ||
-                                    (task.type === 'unit' && task.completedUnits >= task.totalUnits);
+            ui.taskList.innerHTML = tasks.length === 0 
+                ? `<p class="text-secondary italic text-center p-8">No tasks for this day.</p>`
+                : tasks.map(task => {
+                    const isCompleted = (task.type === 'time' && task.completedMinutes >= task.totalMinutes) ||
+                                        (task.type === 'unit' && task.completedUnits >= task.totalUnits);
+                    const progressInputHTML = task.type === 'time'
+                        ? `<input type="number" data-id="${task.id}" value="${task.completedMinutes || 0}" class="progress-input w-16 text-center rounded-md p-1 themed-input">
+                           <span class="text-secondary text-sm">/ ${task.totalMinutes} min</span>`
+                        : `<input type="number" data-id="${task.id}" value="${task.completedUnits || 0}" class="progress-input w-16 text-center rounded-md p-1 themed-input">
+                           <span class="text-secondary text-sm">/ ${task.totalUnits} units</span>`;
 
-                let progressHTML = '';
-                if (task.type === 'time') {
-                    progressHTML = `
-                        <div class="flex items-center space-x-2">
-                            <input type="number" data-id="${task.id}" value="${task.completedMinutes || 0}" class="progress-input w-16 text-center rounded-md p-1 themed-input">
-                            <span class="text-secondary">/ ${task.totalMinutes} min</span>
-                        </div>`;
-                } else if (task.type === 'unit') {
-                     progressHTML = `
-                        <div class="flex items-center space-x-2">
-                            <input type="number" data-id="${task.id}" value="${task.completedUnits || 0}" class="progress-input w-16 text-center rounded-md p-1 themed-input">
-                            <span class="text-secondary">/ ${task.totalUnits} units</span>
-                        </div>`;
-                }
-
-                const taskEl = document.createElement('div');
-                taskEl.className = 'bg-surface-alt p-4 rounded-lg border-themed';
-                taskEl.innerHTML = `
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center">
-                             <input type="checkbox" ${isCompleted ? 'checked' : ''} class="h-5 w-5 rounded text-blue-500 focus:ring-blue-500 cursor-not-allowed" disabled>
-                             <p class="ml-3 font-medium text-primary ${isCompleted ? 'line-through text-gray-400' : ''}">${task.text}</p>
+                    return `
+                    <div class="bg-surface-alt p-3 rounded-lg border border-themed task-item">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center overflow-hidden">
+                                <input type="checkbox" ${isCompleted ? 'checked' : ''} class="h-5 w-5 rounded text-sky-500 focus:ring-sky-500 cursor-not-allowed flex-shrink-0" disabled>
+                                <p class="ml-3 font-medium text-primary truncate ${isCompleted ? 'line-through text-gray-500' : ''}">${task.text}</p>
+                            </div>
+                            <div class="flex items-center space-x-2 flex-shrink-0">
+                                <div class="flex items-center space-x-2">${progressInputHTML}</div>
+                                <div class="task-actions flex items-center">
+                                    <button class="edit-task-btn p-1.5 hover:bg-gray-600 rounded-md" data-id="${task.id}"><svg class="w-4 h-4 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L16.732 3.732z"></path></svg></button>
+                                    <button class="delete-task-btn p-1.5 hover:bg-gray-600 rounded-md" data-id="${task.id}"><svg class="w-4 h-4 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                                </div>
+                            </div>
                         </div>
-                        ${progressHTML}
-                    </div>
-                `;
-                taskList.appendChild(taskEl);
-            });
+                    </div>`;
+                }).join('');
         }
         
         async function saveProgress() {
             if (!selectedDate) return;
             showLoader(true);
             
-            const dateStr = formatDate(selectedDate);
-            const docRef = doc(db, `daily_progress`, dateStr); // Simplified path
+            const progressInputs = ui.taskList.querySelectorAll('.progress-input');
+            let totalMinutesPlanned = 0, totalMinutesCompleted = 0;
 
-            try {
-                const docSnap = await getDoc(docRef);
-                let dayData = docSnap.exists() ? docSnap.data() : { tasks: [] };
-
-                let totalMinutesPlanned = 0;
-                let totalMinutesCompleted = 0;
-
-                const progressInputs = taskList.querySelectorAll('.progress-input');
-                const newTasks = dayData.tasks.map(task => {
-                    totalMinutesPlanned += task.totalMinutes;
-                    const input = Array.from(progressInputs).find(i => i.dataset.id === task.id);
-                    if (input) {
-                        const completedValue = parseInt(input.value) || 0;
-                        if (task.type === 'time') {
-                             task.completedMinutes = Math.min(completedValue, task.totalMinutes);
-                             totalMinutesCompleted += task.completedMinutes;
-                        } else if (task.type === 'unit') {
-                            task.completedUnits = Math.min(completedValue, task.totalUnits);
-                            const minutesPerUnit = task.totalMinutes > 0 && task.totalUnits > 0 ? task.totalMinutes / task.totalUnits : 0;
-                            totalMinutesCompleted += task.completedUnits * minutesPerUnit;
-                        }
+            const newTasks = currentTasks.map(task => {
+                totalMinutesPlanned += task.totalMinutes;
+                const input = Array.from(progressInputs).find(i => i.dataset.id === task.id);
+                if (input) {
+                    const completedValue = parseInt(input.value) || 0;
+                    if (task.type === 'time') {
+                         task.completedMinutes = Math.min(completedValue, task.totalMinutes);
+                         totalMinutesCompleted += task.completedMinutes;
+                    } else if (task.type === 'unit') {
+                        task.completedUnits = Math.min(completedValue, task.totalUnits);
+                        const minsPerUnit = task.totalMinutes / task.totalUnits || 0;
+                        totalMinutesCompleted += task.completedUnits * minsPerUnit;
                     }
-                    return task;
-                });
-                
-                dayData.tasks = newTasks;
-                dayData.totalMinutesPlanned = totalMinutesPlanned;
-                dayData.totalMinutesCompleted = totalMinutesCompleted;
-                dayData.completionPercentage = totalMinutesPlanned > 0 ? Math.round((totalMinutesCompleted / totalMinutesPlanned) * 100) : 0;
-                
-                await setDoc(docRef, dayData);
-                await renderCalendar();
-                showToast("Progress saved successfully!");
+                }
+                return task;
+            });
+            
+            const dayData = {
+                tasks: newTasks,
+                totalMinutesPlanned,
+                totalMinutesCompleted,
+                completionPercentage: totalMinutesPlanned > 0 ? Math.round((totalMinutesCompleted / totalMinutesPlanned) * 100) : 0,
+            };
+            
+            try {
+                await setDoc(doc(db, `daily_progress`, formatDate(selectedDate)), dayData);
+                showToast("Progress saved!");
             } catch (error) {
                 console.error("Error saving progress:", error);
                 showToast("Failed to save progress.", "error");
@@ -495,89 +406,162 @@
             }
         }
         
-        // --- MODAL LOGIC ---
-        const addTaskModal = document.getElementById('add-task-modal');
-        const modalContent = document.getElementById('modal-content');
-        const taskTypeSelect = document.getElementById('task-type');
-        const timeFields = document.getElementById('time-fields');
-        const unitFields = document.getElementById('unit-fields');
-
-        taskTypeSelect.addEventListener('change', () => {
-            timeFields.classList.toggle('hidden', taskTypeSelect.value !== 'time');
-            unitFields.classList.toggle('hidden', taskTypeSelect.value !== 'unit');
-        });
-
-        function openModal() {
-            document.getElementById('task-text').value = '';
-            document.getElementById('task-minutes').value = '';
-            document.getElementById('task-units').value = '';
-            document.getElementById('task-total-minutes-for-units').value = '';
-            taskTypeSelect.value = 'time';
-            timeFields.classList.remove('hidden');
-            unitFields.classList.add('hidden');
-
-            addTaskModal.classList.remove('hidden');
-            setTimeout(() => modalContent.classList.add('scale-100'), 10);
+        // --- MODALS ---
+        function renderModal(content) {
+            ui.modalContainer.innerHTML = `
+            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop modal-instance">
+                ${content}
+            </div>`;
+            ui.modalContainer.querySelector('.modal-instance').addEventListener('click', e => {
+                if (e.target.classList.contains('modal-instance')) closeModal();
+            });
         }
 
         function closeModal() {
-            modalContent.classList.remove('scale-100');
-            addTaskModal.classList.add('hidden');
+            const modal = ui.modalContainer.querySelector('.modal-instance');
+            if(modal) {
+                modal.firstElementChild.classList.add('opacity-0', 'scale-95');
+                modal.classList.add('opacity-0');
+                setTimeout(() => ui.modalContainer.innerHTML = '', 200);
+            }
         }
         
-        async function handleAddTask() {
-            if (!selectedDate) return;
-
-            const text = document.getElementById('task-text').value.trim();
-            if (!text) {
-                showToast("Task description cannot be empty.", "error");
-                return;
-            }
-            const type = taskTypeSelect.value;
+        function openTaskModal(taskToEdit = null) {
+            const isEditing = !!taskToEdit;
+            const modalHTML = `
+            <div class="bg-surface rounded-2xl shadow-2xl p-6 w-full max-w-md border border-themed transform transition-all duration-200 opacity-0 scale-95">
+                <h2 class="text-2xl font-bold mb-6 text-header">${isEditing ? 'Edit Task' : 'Add New Task'}</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-secondary mb-1">Description</label>
+                        <input type="text" id="task-text-input" class="w-full px-4 py-2 rounded-lg themed-input" value="${taskToEdit?.text || ''}">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-secondary mb-1">Type</label>
+                        <select id="task-type-select" class="w-full px-4 py-2 rounded-lg themed-select">
+                            <option value="time" ${taskToEdit?.type === 'time' ? 'selected' : ''}>Time-based</option>
+                            <option value="unit" ${taskToEdit?.type === 'unit' ? 'selected' : ''}>Unit-based</option>
+                        </select>
+                    </div>
+                    <div id="time-fields-modal">
+                        <label class="block text-sm font-medium text-secondary mb-1">Total Duration (minutes)</label>
+                        <input type="number" id="task-minutes-input" class="w-full px-4 py-2 rounded-lg themed-input" value="${taskToEdit?.totalMinutes || ''}">
+                    </div>
+                    <div id="unit-fields-modal" class="hidden space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-secondary mb-1">Total Units</label>
+                            <input type="number" id="task-units-input" class="w-full px-4 py-2 rounded-lg themed-input" value="${taskToEdit?.totalUnits || ''}">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-secondary mb-1">Total Time for all units (minutes)</label>
+                            <input type="number" id="task-total-minutes-for-units-input" class="w-full px-4 py-2 rounded-lg themed-input" value="${isEditing ? taskToEdit.totalMinutes : ''}">
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-8 flex justify-end space-x-3">
+                    <button class="cancel-btn px-6 py-2 bg-surface-alt border-themed text-primary font-semibold rounded-lg hover:bg-gray-600 transition-colors">Cancel</button>
+                    <button class="confirm-task-btn px-6 py-2 bg-sky-500 text-white font-semibold rounded-lg hover:bg-sky-600 transition-colors">${isEditing ? 'Update' : 'Add'}</button>
+                </div>
+            </div>`;
+            renderModal(modalHTML);
             
-            let newTask = {
-                id: crypto.randomUUID(), text, type, totalMinutes: 0,
+            const textInput = document.getElementById('task-text-input');
+            const typeSelect = document.getElementById('task-type-select');
+            const timeFields = document.getElementById('time-fields-modal');
+            const unitFields = document.getElementById('unit-fields-modal');
+            
+            const toggleFields = () => {
+                timeFields.classList.toggle('hidden', typeSelect.value === 'unit');
+                unitFields.classList.toggle('hidden', typeSelect.value === 'time');
             };
+            typeSelect.addEventListener('change', toggleFields);
+            toggleFields();
 
-            if (type === 'time') {
-                const totalMinutes = parseInt(document.getElementById('task-minutes').value);
-                if (isNaN(totalMinutes) || totalMinutes <= 0) {
-                    showToast("Please enter a valid total duration.", "error"); return;
+            document.querySelector('.cancel-btn').addEventListener('click', closeModal);
+            document.querySelector('.confirm-task-btn').addEventListener('click', () => {
+                const text = textInput.value.trim();
+                const type = typeSelect.value;
+                if (!text) return showToast("Description cannot be empty.", "error");
+
+                let newTaskData = { text, type };
+                if (type === 'time') {
+                    const totalMinutes = parseInt(document.getElementById('task-minutes-input').value);
+                    if (isNaN(totalMinutes) || totalMinutes <= 0) return showToast("Invalid duration.", "error");
+                    newTaskData = {...newTaskData, totalMinutes, completedMinutes: taskToEdit?.completedMinutes || 0 };
+                } else {
+                    const totalUnits = parseInt(document.getElementById('task-units-input').value);
+                    const totalMinutesForUnits = parseInt(document.getElementById('task-total-minutes-for-units-input').value);
+                    if (isNaN(totalUnits) || totalUnits <= 0 || isNaN(totalMinutesForUnits) || totalMinutesForUnits <= 0) return showToast("Invalid units or time.", "error");
+                    newTaskData = {...newTaskData, totalUnits, totalMinutes: totalMinutesForUnits, completedUnits: taskToEdit?.completedUnits || 0 };
                 }
-                newTask.totalMinutes = totalMinutes;
-                newTask.completedMinutes = 0;
-            } else { // unit
-                const totalUnits = parseInt(document.getElementById('task-units').value);
-                const totalMinutesForUnits = parseInt(document.getElementById('task-total-minutes-for-units').value);
-                if (isNaN(totalUnits) || totalUnits <= 0 || isNaN(totalMinutesForUnits) || totalMinutesForUnits <= 0) {
-                    showToast("Please enter valid units and total time.", "error"); return;
-                }
-                newTask.totalUnits = totalUnits;
-                newTask.totalMinutes = totalMinutesForUnits;
-                newTask.completedUnits = 0;
+
+                handleSaveTask(isEditing ? {...taskToEdit, ...newTaskData} : {...newTaskData, id: crypto.randomUUID()});
+            });
+
+            setTimeout(() => {
+                const modalContent = ui.modalContainer.querySelector('.transform');
+                if(modalContent) modalContent.classList.remove('opacity-0', 'scale-95');
+            }, 10);
+        }
+
+        async function handleSaveTask(taskData) {
+            let updatedTasks;
+            const existingTaskIndex = currentTasks.findIndex(t => t.id === taskData.id);
+
+            if (existingTaskIndex > -1) {
+                updatedTasks = [...currentTasks];
+                updatedTasks[existingTaskIndex] = taskData;
+            } else {
+                updatedTasks = [...currentTasks, taskData];
             }
-
+            
             showLoader(true);
-            const dateStr = formatDate(selectedDate);
-            const docRef = doc(db, `daily_progress`, dateStr); // Simplified path
-
             try {
-                const docSnap = await getDoc(docRef);
-                let dayData = docSnap.exists() ? docSnap.data() : { tasks: [] };
-                dayData.tasks.push(newTask);
-                await setDoc(docRef, dayData);
+                const docRef = doc(db, 'daily_progress', formatDate(selectedDate));
+                await setDoc(docRef, { tasks: updatedTasks }, { merge: true });
                 closeModal();
-                showToast("Task added successfully!");
+                showToast(`Task ${existingTaskIndex > -1 ? 'updated' : 'added'}!`);
             } catch (error) {
-                console.error("Error adding task:", error);
-                showToast("Failed to add task.", "error");
+                console.error("Error saving task:", error);
+                showToast("Failed to save task.", "error");
             } finally {
                 showLoader(false);
             }
         }
-        
-        function showLoader(isLoading) {
-            loader.classList.toggle('hidden', !isLoading);
+
+        async function handleDeleteTask(taskId) {
+            const updatedTasks = currentTasks.filter(t => t.id !== taskId);
+            showLoader(true);
+            try {
+                const docRef = doc(db, 'daily_progress', formatDate(selectedDate));
+                await setDoc(docRef, { tasks: updatedTasks }, { merge: true });
+                closeModal();
+                showToast("Task deleted.");
+            } catch (error) {
+                console.error("Error deleting task:", error);
+                showToast("Failed to delete task.", "error");
+            } finally {
+                showLoader(false);
+            }
+        }
+
+        function openDeleteConfirmation(taskId) {
+            const modalHTML = `
+            <div class="bg-surface rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-themed transform transition-all duration-200 opacity-0 scale-95">
+                <h3 class="text-xl font-bold text-header">Confirm Deletion</h3>
+                <p class="text-secondary my-4">Are you sure you want to delete this task? This action cannot be undone.</p>
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button class="cancel-btn px-5 py-2 bg-surface-alt border-themed text-primary font-semibold rounded-lg hover:bg-gray-600 transition-colors">Cancel</button>
+                    <button id="confirm-delete-btn" class="px-5 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors">Delete</button>
+                </div>
+            </div>`;
+            renderModal(modalHTML);
+            document.querySelector('.cancel-btn').addEventListener('click', closeModal);
+            document.getElementById('confirm-delete-btn').addEventListener('click', () => handleDeleteTask(taskId));
+            setTimeout(() => {
+                const modalContent = ui.modalContainer.querySelector('.transform');
+                if(modalContent) modalContent.classList.remove('opacity-0', 'scale-95');
+            }, 10);
         }
 
         // --- EVENT LISTENERS ---
@@ -585,22 +569,29 @@
             currentDate.setMonth(currentDate.getMonth() - 1);
             renderCalendar();
         });
-
         document.getElementById('next-month').addEventListener('click', () => {
             currentDate.setMonth(currentDate.getMonth() + 1);
             renderCalendar();
         });
-
-        document.getElementById('add-task-btn').addEventListener('click', openModal);
-        document.getElementById('cancel-task-btn').addEventListener('click', closeModal);
-        document.getElementById('confirm-add-task-btn').addEventListener('click', handleAddTask);
+        document.getElementById('add-task-btn').addEventListener('click', () => openTaskModal());
         document.getElementById('save-progress-btn').addEventListener('click', saveProgress);
-
-        addTaskModal.addEventListener('click', (e) => {
-            if (e.target === addTaskModal) closeModal();
+        
+        ui.taskList.addEventListener('click', e => {
+            const editBtn = e.target.closest('.edit-task-btn');
+            const deleteBtn = e.target.closest('.delete-task-btn');
+            if (editBtn) {
+                const task = currentTasks.find(t => t.id === editBtn.dataset.id);
+                if (task) openTaskModal(task);
+            }
+            if (deleteBtn) {
+                openDeleteConfirmation(deleteBtn.dataset.id);
+            }
         });
 
+        main();
     </script>
 </body>
 </html>
+
+
 
