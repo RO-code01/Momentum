@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Progress Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -106,6 +107,18 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* SortableJS styles */
+        .sortable-ghost {
+            opacity: 0.4;
+            background: #374151;
+        }
+        .task-item {
+            cursor: grab;
+        }
+        .task-item:active {
+            cursor: grabbing;
+        }
+
         /* Utility classes */
         .bg-surface { background-color: var(--color-surface); }
         .text-header { color: var(--color-text-header); }
@@ -128,10 +141,20 @@
         }
         .task-actions { opacity: 0; transition: opacity 0.2s ease-in-out; }
         .task-item:hover .task-actions { opacity: 1; }
+
+        /* Responsive height for task list */
+        .tasks-container {
+            height: 75vh;
+        }
+        @media (max-width: 1023px) {
+            .tasks-container {
+                height: auto; /* Let it grow naturally on smaller screens */
+                max-height: 50vh; /* But don't let it take over */
+            }
+        }
     </style>
 </head>
 <body class="antialiased">
-
     <!-- App Container -->
     <div id="app-container" class="min-h-screen p-2 sm:p-4 lg:p-6">
         <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -162,9 +185,24 @@
 
             <!-- Right Column: Daily Tasks -->
             <div class="lg:col-span-2 bg-surface p-4 sm:p-6 rounded-2xl shadow-2xl h-fit border border-themed">
-                <div class="h-[75vh] flex flex-col">
-                    <h3 class="text-lg sm:text-xl font-bold text-header mb-1">Tasks for</h3>
-                    <p class="text-secondary font-medium mb-4 text-sm" id="selected-date-header">Select a date</p>
+                <div class="tasks-container flex flex-col">
+                     <div class="flex items-start justify-between mb-4">
+                        <div>
+                            <h3 class="text-lg sm:text-xl font-bold text-header mb-1">Tasks for</h3>
+                            <p class="text-secondary font-medium text-sm" id="selected-date-header">Select a date</p>
+                        </div>
+                        <div id="daily-percentage-container" class="text-right hidden items-center gap-2">
+                            <div>
+                                <p id="daily-percentage-text" class="text-3xl font-bold text-header">0%</p>
+                                <p class="text-xs text-secondary">Completed</p>
+                            </div>
+                            <button id="goal-insights-btn" class="p-2 rounded-full hover:bg-surface-alt transition-colors interactive-scale hidden">
+                                <svg class="h-6 w-6 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
                     <div id="task-list" class="flex-grow space-y-3 mb-4 pr-2 overflow-y-auto"></div>
                     <div id="task-view-actions" class="hidden mt-auto pt-4 border-t border-themed">
                         <button id="add-task-btn" class="w-full bg-sky-500 text-white font-semibold py-3 rounded-lg hover:bg-sky-600 transition-all shadow-lg shadow-sky-900/50 interactive-scale">Add New Task</button>
@@ -175,7 +213,7 @@
         </div>
     </div>
     
-    <!-- Modals (Add, Edit, Confirm Delete) -->
+    <!-- Modals (Add, Edit, Confirm Delete, Goal Insights) -->
     <div id="modal-container"></div>
     
     <!-- Loader & Toast -->
@@ -186,7 +224,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, getDocs, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, getDocs, query, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         const firebaseConfig = {
           apiKey: "AIzaSyC4Psy8n4mOY8iqntvc4LCh3p_1p5wqU08",
@@ -198,7 +236,7 @@
           measurementId: "G-TJRELT8PFW"
         };
         
-        let app, auth, db, userId, unsubscribeTaskListener;
+        let app, auth, db, userId, unsubscribeTaskListener, sortableInstance;
         let isAuthReady = false;
         let currentDate = new Date();
         let selectedDate = null;
@@ -215,6 +253,9 @@
             toast: document.getElementById('toast'),
             toastMessage: document.getElementById('toast-message'),
             modalContainer: document.getElementById('modal-container'),
+            dailyPercentageContainer: document.getElementById('daily-percentage-container'),
+            dailyPercentageText: document.getElementById('daily-percentage-text'),
+            goalInsightsBtn: document.getElementById('goal-insights-btn'),
         };
 
         // --- INITIALIZE APP ---
@@ -247,6 +288,26 @@
         // --- HELPERS ---
         const formatDate = date => date.toISOString().split('T')[0];
         const showLoader = isLoading => ui.loader.classList.toggle('hidden', !isLoading);
+        const calculateDayStats = (tasks) => {
+            let totalMinutesPlanned = 0;
+            let totalMinutesCompleted = 0;
+            tasks.forEach(task => {
+                totalMinutesPlanned += task.totalMinutes || 0;
+                if (task.type === 'time') {
+                    totalMinutesCompleted += task.completedMinutes || 0;
+                } else if (task.type === 'unit') {
+                    const minsPerUnit = (task.totalMinutes / task.totalUnits) || 0;
+                    totalMinutesCompleted += (task.completedUnits || 0) * minsPerUnit;
+                }
+            });
+            return {
+                tasks,
+                totalMinutesPlanned,
+                totalMinutesCompleted,
+                completionPercentage: totalMinutesPlanned > 0 ? Math.round((totalMinutesCompleted / totalMinutesPlanned) * 100) : 0,
+            };
+        };
+
 
         function showToast(message, type = 'success') {
             ui.toastMessage.textContent = message;
@@ -254,6 +315,20 @@
             ui.toast.classList.add(type === 'error' ? 'bg-red-500' : 'bg-surface-alt');
             ui.toast.classList.remove('opacity-0', 'translate-y-2');
             setTimeout(() => ui.toast.classList.add('opacity-0', 'translate-y-2'), 3000);
+        }
+
+        function renderDailyStats(tasks) {
+            const stats = calculateDayStats(tasks);
+            if (tasks && tasks.length > 0) {
+                ui.dailyPercentageText.textContent = `${stats.completionPercentage}%`;
+                ui.dailyPercentageContainer.style.display = 'flex';
+                
+                const showGoalButton = stats.totalMinutesPlanned > 0 && stats.completionPercentage < 81;
+                ui.goalInsightsBtn.classList.toggle('hidden', !showGoalButton);
+
+            } else {
+                ui.dailyPercentageContainer.style.display = 'none';
+            }
         }
 
         // --- CALENDAR ---
@@ -264,10 +339,11 @@
             
             try {
                 const querySnapshot = await getDocs(q);
-                monthlyData = {};
+                const newMonthlyData = {};
                 querySnapshot.forEach(doc => {
-                     if (doc.id.startsWith(`${year}-${monthStr}`)) monthlyData[doc.id] = doc.data();
+                     if (doc.id.startsWith(`${year}-${monthStr}`)) newMonthlyData[doc.id] = doc.data();
                 });
+                monthlyData = newMonthlyData;
             } catch (error) {
                  console.error("Error fetching monthly data:", error);
                  showToast("Could not load calendar.", "error");
@@ -279,7 +355,10 @@
             showLoader(true);
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
-            await fetchMonthlyData(year, month);
+            
+            if (Object.keys(monthlyData).length === 0 || !Object.keys(monthlyData)[0].startsWith(`${year}-${String(month+1).padStart(2,'0')}`)) {
+                 await fetchMonthlyData(year, month);
+            }
             
             ui.monthYearHeader.textContent = currentDate.toLocaleString('en-US', { month: 'long', year: 'numeric' });
             ui.calendarGrid.innerHTML = '';
@@ -324,8 +403,13 @@
             const docRef = doc(db, `daily_progress`, formatDate(date));
 
             unsubscribeTaskListener = onSnapshot(docRef, docSnap => {
-                currentTasks = docSnap.exists() ? docSnap.data().tasks || [] : [];
+                const dayData = docSnap.exists() ? docSnap.data() : { tasks: [] };
+                currentTasks = dayData.tasks || [];
+                
+                monthlyData[formatDate(date)] = dayData.tasks.length > 0 ? dayData : undefined;
+
                 renderTasks(currentTasks);
+                renderDailyStats(currentTasks);
                 renderCalendar();
             }, error => {
                 console.error("Task listener error:", error);
@@ -346,7 +430,7 @@
                            <span class="text-secondary text-sm">/ ${task.totalUnits} units</span>`;
 
                     return `
-                    <div class="bg-surface-alt p-3 rounded-lg border border-themed task-item">
+                    <div class="bg-surface-alt p-3 rounded-lg border border-themed task-item" data-id="${task.id}">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center overflow-hidden">
                                 <input type="checkbox" ${isCompleted ? 'checked' : ''} class="h-5 w-5 rounded text-sky-500 focus:ring-sky-500 cursor-not-allowed flex-shrink-0" disabled>
@@ -362,6 +446,31 @@
                         </div>
                     </div>`;
                 }).join('');
+            
+            if (sortableInstance) sortableInstance.destroy();
+            if (tasks.length > 0) {
+                 sortableInstance = new Sortable(ui.taskList, {
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    delay: 200,
+                    delayOnTouchOnly: true,
+                    onEnd: async (evt) => {
+                        const taskElements = Array.from(ui.taskList.children);
+                        const newOrderIds = taskElements.map(el => el.dataset.id);
+                        const reorderedTasks = newOrderIds.map(id => currentTasks.find(task => task.id === id)).filter(Boolean);
+                        
+                        currentTasks = reorderedTasks; // Optimistic update
+                        const dayData = calculateDayStats(currentTasks);
+                        
+                        try {
+                            await setDoc(doc(db, `daily_progress`, formatDate(selectedDate)), dayData);
+                        } catch (error) {
+                             console.error("Error saving new task order:", error);
+                             showToast("Failed to save order.", "error");
+                        }
+                    },
+                });
+            }
         }
         
         async function saveProgress() {
@@ -369,31 +478,20 @@
             showLoader(true);
             
             const progressInputs = ui.taskList.querySelectorAll('.progress-input');
-            let totalMinutesPlanned = 0, totalMinutesCompleted = 0;
-
             const newTasks = currentTasks.map(task => {
-                totalMinutesPlanned += task.totalMinutes;
                 const input = Array.from(progressInputs).find(i => i.dataset.id === task.id);
                 if (input) {
                     const completedValue = parseInt(input.value) || 0;
                     if (task.type === 'time') {
                          task.completedMinutes = Math.min(completedValue, task.totalMinutes);
-                         totalMinutesCompleted += task.completedMinutes;
                     } else if (task.type === 'unit') {
                         task.completedUnits = Math.min(completedValue, task.totalUnits);
-                        const minsPerUnit = task.totalMinutes / task.totalUnits || 0;
-                        totalMinutesCompleted += task.completedUnits * minsPerUnit;
                     }
                 }
                 return task;
             });
             
-            const dayData = {
-                tasks: newTasks,
-                totalMinutesPlanned,
-                totalMinutesCompleted,
-                completionPercentage: totalMinutesPlanned > 0 ? Math.round((totalMinutesCompleted / totalMinutesPlanned) * 100) : 0,
-            };
+            const dayData = calculateDayStats(newTasks);
             
             try {
                 await setDoc(doc(db, `daily_progress`, formatDate(selectedDate)), dayData);
@@ -426,6 +524,61 @@
             }
         }
         
+        function openGoalInsightsModal() {
+            const stats = calculateDayStats(currentTasks);
+            const { totalMinutesPlanned, totalMinutesCompleted, completionPercentage } = stats;
+
+            const minutesForYellow = Math.ceil((totalMinutesPlanned * 0.70) - totalMinutesCompleted);
+            const minutesForGreen = Math.ceil((totalMinutesPlanned * 0.81) - totalMinutesCompleted);
+
+            let contentHTML = '';
+
+            if (completionPercentage < 70) { // In Red zone
+                contentHTML = `
+                    <div class="text-center">
+                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100">
+                           <svg class="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a2 2 0 01-2-2V7a2 2 0 012-2h6l2-2h2l-2 2z" /></svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-header mt-4">Next Level: Yellow</h3>
+                        <p class="text-secondary my-2">Complete <strong class="text-yellow-400">${minutesForYellow} more minutes</strong> of work to reach 70%.</p>
+                    </div>
+                    <hr class="border-t-2 border-dashed border-themed my-6">
+                    <div class="text-center">
+                         <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+                           <svg class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6-6l-1.5-1.5a2.25 2.25 0 00-3.182 0l-10.5 10.5a2.25 2.25 0 000 3.182l1.5 1.5a2.25 2.25 0 003.182 0l10.5-10.5a2.25 2.25 0 000-3.182z" /></svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-header mt-4">Goal: Green</h3>
+                        <p class="text-secondary my-2">Complete <strong class="text-green-400">${minutesForGreen} more minutes</strong> of work to reach 81%.</p>
+                    </div>
+                `;
+            } else { // In Yellow zone
+                 contentHTML = `
+                    <div class="text-center">
+                         <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+                           <svg class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6-6l-1.5-1.5a2.25 2.25 0 00-3.182 0l-10.5 10.5a2.25 2.25 0 000 3.182l1.5 1.5a2.25 2.25 0 003.182 0l10.5-10.5a2.25 2.25 0 000-3.182z" /></svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-header mt-4">Goal: Green</h3>
+                        <p class="text-secondary my-2">Complete <strong class="text-green-400">${minutesForGreen} more minutes</strong> of work to reach 81%.</p>
+                    </div>
+                `;
+            }
+
+            const modalHTML = `
+            <div class="bg-surface rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-themed transform transition-all duration-200 opacity-0 scale-95">
+                ${contentHTML}
+                <div class="mt-6">
+                    <button class="cancel-btn w-full px-5 py-2 bg-surface-alt border-themed text-primary font-semibold rounded-lg hover:bg-gray-600 transition-colors">Close</button>
+                </div>
+            </div>`;
+
+            renderModal(modalHTML);
+            document.querySelector('.cancel-btn').addEventListener('click', closeModal);
+            setTimeout(() => {
+                const modalContent = ui.modalContainer.querySelector('.transform');
+                if(modalContent) modalContent.classList.remove('opacity-0', 'scale-95');
+            }, 10);
+        }
+
         function openTaskModal(taskToEdit = null) {
             const isEditing = !!taskToEdit;
             const modalHTML = `
@@ -445,7 +598,7 @@
                     </div>
                     <div id="time-fields-modal">
                         <label class="block text-sm font-medium text-secondary mb-1">Total Duration (minutes)</label>
-                        <input type="number" id="task-minutes-input" class="w-full px-4 py-2 rounded-lg themed-input" value="${taskToEdit?.totalMinutes || ''}">
+                        <input type="number" id="task-minutes-input" class="w-full px-4 py-2 rounded-lg themed-input" value="${(isEditing && taskToEdit.type === 'time') ? taskToEdit.totalMinutes : ''}">
                     </div>
                     <div id="unit-fields-modal" class="hidden space-y-4">
                         <div>
@@ -454,7 +607,7 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-secondary mb-1">Total Time for all units (minutes)</label>
-                            <input type="number" id="task-total-minutes-for-units-input" class="w-full px-4 py-2 rounded-lg themed-input" value="${isEditing ? taskToEdit.totalMinutes : ''}">
+                            <input type="number" id="task-total-minutes-for-units-input" class="w-full px-4 py-2 rounded-lg themed-input" value="${(isEditing && taskToEdit.type === 'unit') ? taskToEdit.totalMinutes : ''}">
                         </div>
                     </div>
                 </div>
@@ -515,10 +668,11 @@
                 updatedTasks = [...currentTasks, taskData];
             }
             
+            const dayData = calculateDayStats(updatedTasks);
             showLoader(true);
             try {
                 const docRef = doc(db, 'daily_progress', formatDate(selectedDate));
-                await setDoc(docRef, { tasks: updatedTasks }, { merge: true });
+                await setDoc(docRef, dayData);
                 closeModal();
                 showToast(`Task ${existingTaskIndex > -1 ? 'updated' : 'added'}!`);
             } catch (error) {
@@ -534,7 +688,13 @@
             showLoader(true);
             try {
                 const docRef = doc(db, 'daily_progress', formatDate(selectedDate));
-                await setDoc(docRef, { tasks: updatedTasks }, { merge: true });
+                if (updatedTasks.length > 0) {
+                    const dayData = calculateDayStats(updatedTasks);
+                    await setDoc(docRef, dayData);
+                } else {
+                    // If no tasks are left, delete the document for that day entirely.
+                    await deleteDoc(docRef);
+                }
                 closeModal();
                 showToast("Task deleted.");
             } catch (error) {
@@ -567,14 +727,18 @@
         // --- EVENT LISTENERS ---
         document.getElementById('prev-month').addEventListener('click', () => {
             currentDate.setMonth(currentDate.getMonth() - 1);
+            monthlyData = {}; // Clear data for new month
             renderCalendar();
         });
         document.getElementById('next-month').addEventListener('click', () => {
             currentDate.setMonth(currentDate.getMonth() + 1);
+            monthlyData = {}; // Clear data for new month
             renderCalendar();
         });
         document.getElementById('add-task-btn').addEventListener('click', () => openTaskModal());
         document.getElementById('save-progress-btn').addEventListener('click', saveProgress);
+        document.getElementById('goal-insights-btn').addEventListener('click', openGoalInsightsModal);
+
         
         ui.taskList.addEventListener('click', e => {
             const editBtn = e.target.closest('.edit-task-btn');
@@ -592,6 +756,4 @@
     </script>
 </body>
 </html>
-
-
 
